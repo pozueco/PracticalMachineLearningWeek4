@@ -1,4 +1,4 @@
-# Practical Machine Learning - Week4
+# Practical Machine Learning - Week 4
 
 Github repository containing my .Rmd file and the compiled HTML file performing your analysis:
 
