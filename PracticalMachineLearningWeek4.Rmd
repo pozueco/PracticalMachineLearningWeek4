@@ -1,0 +1,122 @@
+---
+title: "Practical Machine Learning - Prediction Assignment Writeup"
+author: "Javier Pozueco"
+date: "2022-07-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here:
+
+http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har 
+
+(see the section on the Weight Lifting Exercise Dataset).
+
+## Training and Testing Datasets
+
+The training data for this project are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The data for this project come from this source:
+
+http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har
+
+We will download the training and test data from the URLs provided before:
+
+```{r}
+trainLink <-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testLink <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+trainDest <- "./data/pml-training.csv"
+testDest  <- "./data/pml-testing.csv"
+
+if (!file.exists("./data")) {
+  dir.create("./data")
+}
+
+if (!file.exists(trainDest)) {
+  download.file(trainLink, destfile=trainDest, method="curl")
+}
+
+if (!file.exists(testDest)) {
+  download.file(testLink, destfile=testDest, method="curl")
+}
+
+trainRaw <- read.csv(trainDest)
+testRaw <- read.csv(testDest)
+```
+
+Now we print the number of dimensions for the training and the test dataset:
+
+```{r}
+dim(trainRaw)
+dim(testRaw)
+```
+
+## Cleaning Data
+
+Before creating the model, we are going to remove those columns that are 0 or NA in the testing dataset and that can be used to predict a value, from the training and the testing datasets:
+
+```{r}
+trainClean <- trainRaw[, colSums(is.na(testRaw)) == 0] 
+testClean <- testRaw[, colSums(is.na(testRaw)) == 0] 
+
+names(trainClean)
+names(testClean)
+```
+
+We will also remove the first 7 columns that are just indexes, time stamps and identifiers:
+
+```{r}
+trainClean <- trainClean[, -c(1:7)]
+testClean <- testClean[, -c(1:7)]
+testClean <- testClean[, !(colnames(testClean) %in% c("problem_id"))]
+```
+
+We can also plot how the final dimensions are correlated to each other, as we can see in the appendix. 
+
+## Data Modeling
+
+In order fit a predictive model for the class we will use the random forest algorithm that selects important variables:
+
+```{r}
+library(randomForest)
+
+trainClean$classe = factor(trainClean$classe) 
+
+modelRF <- randomForest(classe ~ ., data = trainClean)
+
+modelRF
+```
+The number of decision trees used by this model in the forest is 500 and the number of features used as potential candidates for each split is 7. The confusion matrix is used to evaluate the performance of the model. Values on the diagonal correspond to true positives and true negatives whereas the others correspond to false positives and false negatives. On the other hand, the error rate that we obtained is 0.29%.
+
+If we apply the model to the original testing data set, results are the following:
+
+```{r}
+testClean$classe <- predict(modelRF, newdata = testClean)
+
+testClean$classe
+```
+## Appendix: Figures
+
+The correlation plot between dimensions, is the following:
+
+```{r, fig.width=20, fig.height=15}
+library(corrplot)
+
+corrPlot <- cor(trainClean[, -length(names(trainClean))])
+
+corrplot(corrPlot, method="color", addCoef.col = 10, number.cex = 0.75)
+```
+
+
